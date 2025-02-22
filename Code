@@ -1,0 +1,94 @@
+from google.colab import drive
+drive.mount('/content/drive')
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import MinMaxScaler
+
+dataset = pd.read_csv('/content/drive/MyDrive/coleb/heart.csv')
+
+dataset
+
+import altair as alt
+
+# Assuming 'dataset' is original DataFrame
+heart_disease_chart = alt.Chart(dataset).mark_bar().encode(
+    alt.X('HeartDisease:N', title='Heart Disease'),
+    alt.Y('count()', title='Count'),
+    color=alt.Color('HeartDisease:N', legend=alt.Legend(title='Heart Disease'))
+).properties(
+    title='Distribution of Heart Disease',
+    width=400
+)
+
+heart_disease_chart
+
+dataset.info()
+
+dummy_dataset =  pd.get_dummies(dataset)
+dummy_dataset
+
+new_dummy_ds = pd.get_dummies(dataset , drop_first =True )
+new_dummy_ds
+
+from sklearn.preprocessing import OneHotEncoder
+
+oh_enc = OneHotEncoder()
+
+oh_enc_arr = oh_enc.fit_transform(dataset[['Sex' , 'ChestPainType' ,'RestingECG' , 'ExerciseAngina' ,'ST_Slope' ]])
+oh_enc_arr.toarray()
+
+onehot_df = pd.DataFrame(oh_enc_arr.toarray(), columns=oh_enc.get_feature_names_out())
+onehot_df
+
+final_df = pd.concat([dataset , onehot_df] , axis=1)
+final_df
+
+final_df.drop(columns=['Sex' , 'ChestPainType' ,'RestingECG' , 'ExerciseAngina' ,'ST_Slope' ] , inplace=True)
+final_df
+
+scaler = MinMaxScaler()
+scaled_data = scaler.fit_transform(final_df.drop(columns=['HeartDisease']))
+scaled_df = pd.DataFrame(scaled_data, columns=final_df.drop(columns=['HeartDisease']).columns)
+
+X = scaled_df.values
+y = final_df['HeartDisease'].values
+
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+models = {
+    'Logistic Regression': LogisticRegression(),
+    'Random Forest': RandomForestClassifier(),
+    'SVM': SVC(),
+    'KNN': KNeighborsClassifier(),
+    'Gradient Boosting': GradientBoostingClassifier()
+}
+
+results = {}
+
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    accuracy = accuracy_score(y_test, y_pred)
+    results[name] = accuracy
+    print(f'{name} Accuracy: {accuracy:.4f}')
+    print(classification_report(y_test, y_pred))
+    cm = confusion_matrix(y_test, y_pred)
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title(f'Confusion Matrix for {name}')
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    plt.show()
+
+best_model = max(results, key=results.get)
+print(f'Best performing model: {best_model} with accuracy {results[best_model]:.4f}')
